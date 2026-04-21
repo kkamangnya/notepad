@@ -24,7 +24,7 @@
 - `src/components/NoteList.tsx`
 - `src/styles.css`
 
-## [1.0.5] - 2026-04-21 10:00 KST
+## [1.0.5] - 2026-04-21 10:26 KST
 
 ### Added
 - 상단 프로필 영역에 닉네임 입력과 인증 상태 표시를 추가.
@@ -44,7 +44,7 @@
 - `src/components/Layout.tsx`
 - `src/styles.css`
 
-## [1.0.4] - 2026-04-21 10:00 KST
+## [1.0.4] - 2026-04-21 10:26 KST
 
 ### Added
 - Fabric 이미지 로딩을 HTML 이미지 엘리먼트 기반으로 처리하는 안정화 경로 추가.
@@ -62,7 +62,7 @@
 ### Files
 - `src/components/CanvasEditor.tsx`
 
-## [1.0.3] - 2026-04-21 10:00 KST
+## [1.0.3] - 2026-04-21 10:26 KST
 
 ### Added
 - 캔버스 상태를 유지한 채 브러시/지우개 설정만 바꾸는 안정화 로직 추가.
@@ -81,7 +81,7 @@
 ### Files
 - `src/components/CanvasEditor.tsx`
 
-## [1.0.2] - 2026-04-21 10:00 KST
+## [1.0.2] - 2026-04-21 10:26 KST
 
 ### Added
 - Firebase Anonymous Auth가 꺼져 있을 때 원인을 바로 알 수 있는 에러 안내를 추가.
@@ -131,7 +131,7 @@
 - `src/types.ts`
 - `.gitignore`
 
-## [1.0.0] - 2026-04-21 10:00 KST
+## [1.0.0] - 2026-04-21 08:53 KST
 
 ### Added
 - React 기반 메모 앱 전체 구현.
