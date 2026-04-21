@@ -16,5 +16,5 @@ React + Firebase 메모 앱.
 
 ## 배포
 
-- Vercel, Netlify, Firebase Hosting에서는 프로젝트 설정의 Environment Variables 기능에 Firebase 설정값을 등록합니다.
+- Vercel, Netlify, Firebase Hosting에서는 프로젝트 설정의 Environment Variables에 Firebase 설정값을 등록합니다.
 - 클라이언트에 포함되는 Firebase API 키는 프로젝트 식별용이며, 실제 보호는 Firebase Authentication과 Security Rules로 수행합니다.
