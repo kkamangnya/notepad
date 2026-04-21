@@ -40,19 +40,7 @@ function syncImages(canvas: any, images: NoteImage[]) {
   images.forEach((image) => {
     if (existingIds.has(image.id)) return
     void loadFabricImage(image.url).then((fabricImage: any) => {
-      fabricImage.set({
-        left: image.x,
-        top: image.y,
-        scaleX: image.scale,
-        scaleY: image.scale,
-        angle: image.rotation,
-        hasControls: true,
-        hasBorders: true,
-        selectable: true,
-        evented: true,
-        name: image.name,
-        data: { imageId: image.id },
-      } as any)
+      placeImageOnCanvas(canvas, fabricImage, image, false)
       canvas.add(fabricImage)
       fabricImage.setCoords()
       canvas.requestRenderAll()
@@ -61,6 +49,29 @@ function syncImages(canvas: any, images: NoteImage[]) {
 }
 
 async function loadFabricImage(url: string) {
+  try {
+    const viaFabric = await new Promise<any>((resolve, reject) => {
+      let settled = false
+      const timer = window.setTimeout(() => {
+        if (!settled) reject(new Error('이미지 로딩 시간이 초과되었습니다.'))
+      }, 8000)
+
+      fabric.Image.fromURL(
+        url,
+        (fabricImage: any) => {
+          settled = true
+          window.clearTimeout(timer)
+          resolve(fabricImage)
+        },
+        { crossOrigin: 'anonymous' },
+      )
+    })
+
+    if (viaFabric) return viaFabric
+  } catch {
+    // Fall through to the manual loader below.
+  }
+
   return await new Promise<any>((resolve, reject) => {
     const element = new Image()
     element.crossOrigin = 'anonymous'
@@ -68,6 +79,31 @@ async function loadFabricImage(url: string) {
     element.onerror = () => reject(new Error('이미지를 불러오지 못했습니다.'))
     element.src = url
   })
+}
+
+function placeImageOnCanvas(canvas: any, fabricImage: any, image: NoteImage, center = true) {
+  const canvasWidth = canvas.getWidth()
+  const canvasHeight = canvas.getHeight()
+  const naturalWidth = fabricImage.width || 1
+  const naturalHeight = fabricImage.height || 1
+  const maxWidth = canvasWidth * 0.72
+  const maxHeight = canvasHeight * 0.72
+  const fitScale = Math.min(maxWidth / naturalWidth, maxHeight / naturalHeight, 1)
+  const scale = image.scale && image.scale > 0 ? image.scale : fitScale
+
+  fabricImage.set({
+    left: center ? (canvasWidth - naturalWidth * scale) / 2 : image.x,
+    top: center ? (canvasHeight - naturalHeight * scale) / 2 : image.y,
+    scaleX: scale,
+    scaleY: scale,
+    angle: image.rotation,
+    hasControls: true,
+    hasBorders: true,
+    selectable: true,
+    evented: true,
+    name: image.name,
+    data: { imageId: image.id },
+  } as any)
 }
 
 export function CanvasEditor({ noteId, tool, brushColor, brushSize, canvasData, images, onChange, onUploadImage, theme }: Props) {
@@ -195,19 +231,7 @@ export function CanvasEditor({ noteId, tool, brushColor, brushSize, canvasData, 
 
   async function addImageToCanvas(canvas: any, image: NoteImage) {
     const fabricImage = await loadFabricImage(image.url)
-    fabricImage.set({
-      left: image.x,
-      top: image.y,
-      scaleX: image.scale,
-      scaleY: image.scale,
-      angle: image.rotation,
-      hasControls: true,
-      hasBorders: true,
-      selectable: true,
-      evented: true,
-      name: image.name,
-      data: { imageId: image.id },
-    } as any)
+    placeImageOnCanvas(canvas, fabricImage, image, true)
     canvas.add(fabricImage)
     canvas.setActiveObject(fabricImage)
     fabricImage.setCoords()

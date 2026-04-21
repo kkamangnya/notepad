@@ -134,16 +134,20 @@ export default function App() {
 
     setStatus('saving')
     try {
-      const saved = await noteRepository.saveNote(
-        {
-          id: current.id,
-          title: current.title,
-          content: current.content,
-          canvasData: current.canvasData,
-          images: current.images,
-          createdAt: current.createdAt,
-        },
-        currentUserId,
+      const saved = await noteRepository.withTimeout(
+        noteRepository.saveNote(
+          {
+            id: current.id,
+            title: current.title,
+            content: current.content,
+            canvasData: current.canvasData,
+            images: current.images,
+            createdAt: current.createdAt,
+          },
+          currentUserId,
+        ),
+        10000,
+        '저장 시간이 초과되었습니다. Firebase 연결 또는 규칙을 확인하세요.',
       )
       lastPersistedSignature.current = buildSignature(saved)
       setNotes((items) => [saved, ...items.filter((item) => item.id !== saved.id)].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)))
