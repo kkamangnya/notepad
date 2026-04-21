@@ -1,5 +1,107 @@
 # Changelog
 
+## [1.0.6] - 2026-04-21 KST
+
+### Added
+- 상단 인증 상태를 아바타와 배지 형태로 노출하는 UI 추가.
+- 메모 카드 하단에 작성자 닉네임 메타를 표시.
+
+### Changed
+- 다크 모드 색조를 더 낮고 부드러운 톤으로 조정.
+- 카드, 패널, 배지의 대비를 완화해 장시간 사용 시 눈부심을 줄이도록 수정.
+
+### Fixed
+- 다크 모드에서 과도하게 강한 대비로 눈이 피로한 문제를 개선.
+- 닉네임이 단순 입력값이 아니라 카드 메타로 읽히도록 UI를 정리.
+
+### Removed
+- 없음.
+
+### Files
+- `src/App.tsx`
+- `src/components/Layout.tsx`
+- `src/components/NoteCard.tsx`
+- `src/components/NoteList.tsx`
+- `src/styles.css`
+
+## [1.0.5] - 2026-04-21 KST
+
+### Added
+- 상단 프로필 영역에 닉네임 입력과 인증 상태 표시를 추가.
+
+### Changed
+- 익명 인증은 백그라운드에서 유지하되, 사용자가 상단에서 닉네임을 입력해 식별할 수 있도록 UI를 개선.
+- 로그인 상태 메시지를 사이드바 상단에 노출하도록 변경.
+
+### Fixed
+- 사용자 입장에서 로그인 위치가 보이지 않던 혼란을 완화.
+
+### Removed
+- 없음.
+
+### Files
+- `src/App.tsx`
+- `src/components/Layout.tsx`
+- `src/styles.css`
+
+## [1.0.4] - 2026-04-21 KST
+
+### Added
+- Fabric 이미지 로딩을 HTML 이미지 엘리먼트 기반으로 처리하는 안정화 경로 추가.
+
+### Changed
+- 업로드/복원 시 이미지 객체를 캔버스에 추가하는 방식을 더 직접적으로 갱신하도록 수정.
+- 이미지 추가 직후 `setCoords()`와 `requestRenderAll()`을 호출해 즉시 반영되도록 개선.
+
+### Fixed
+- 이미지 업로드 후 캔버스에 보이지 않던 문제를 수정.
+
+### Removed
+- 없음.
+
+### Files
+- `src/components/CanvasEditor.tsx`
+
+## [1.0.3] - 2026-04-21 KST
+
+### Added
+- 캔버스 상태를 유지한 채 브러시/지우개 설정만 바꾸는 안정화 로직 추가.
+
+### Changed
+- 캔버스를 도구/두께/색상 변경마다 재생성하지 않고 기존 인스턴스만 갱신하도록 수정.
+- 이미지 추가 시 현재 메모의 캔버스 상태와 충돌하지 않도록 로드/동기화 시점을 분리.
+
+### Fixed
+- 펜/지우개 두께를 바꾸면 그림이 사라지던 문제를 수정.
+- 이미지 추가가 캔버스 재초기화에 의해 반영되지 않던 문제를 수정.
+
+### Removed
+- 없음.
+
+### Files
+- `src/components/CanvasEditor.tsx`
+
+## [1.0.2] - 2026-04-21 KST
+
+### Added
+- Firebase Anonymous Auth가 꺼져 있을 때 원인을 바로 알 수 있는 에러 안내를 추가.
+
+### Changed
+- 인증 사용자 ID가 준비되기 전에는 저장/삭제/이미지 업로드가 진행되지 않도록 가드 추가.
+- 저장 버튼을 인증 완료 전에는 비활성화하도록 수정.
+- Firebase Auth 실패 메시지를 구체화해 설정 누락과 권한 거부를 구분하기 쉽게 개선.
+
+### Fixed
+- `userId`가 비어 있는 상태에서 저장 시도되며 Firestore/Storage에서 오류가 나던 문제를 방지.
+- 익명 로그인 실패 시 저장 오류가 모호하게 보이던 문제를 수정.
+
+### Removed
+- 없음.
+
+### Files
+- `src/App.tsx`
+- `src/lib/firebase.ts`
+
 ## [1.0.1] - 2026-04-21 KST
 
 ### Added

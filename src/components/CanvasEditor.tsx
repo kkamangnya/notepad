@@ -19,7 +19,7 @@ function extractImages(canvas: any): NoteImage[] {
     .filter((item) => item.type === 'image')
     .map((item) => ({
       id: String(item.data?.imageId ?? item.name ?? crypto.randomUUID()),
-      url: String((item.getSrc?.() ?? item.src ?? item.get?.('src')) || ''),
+      url: String(item.getSrc?.() ?? item.src ?? item.get?.('src') ?? ''),
       x: item.left ?? 0,
       y: item.top ?? 0,
       scale: item.scaleX ?? 1,
@@ -30,19 +30,62 @@ function extractImages(canvas: any): NoteImage[] {
     }))
 }
 
+function syncImages(canvas: any, images: NoteImage[]) {
+  const existingIds = new Set(
+    (canvas.getObjects() as any[])
+      .filter((item) => item.type === 'image')
+      .map((item) => String(item.data?.imageId ?? item.name ?? '')),
+  )
+
+  images.forEach((image) => {
+    if (existingIds.has(image.id)) return
+    void loadFabricImage(image.url).then((fabricImage: any) => {
+      fabricImage.set({
+        left: image.x,
+        top: image.y,
+        scaleX: image.scale,
+        scaleY: image.scale,
+        angle: image.rotation,
+        hasControls: true,
+        hasBorders: true,
+        selectable: true,
+        evented: true,
+        name: image.name,
+        data: { imageId: image.id },
+      } as any)
+      canvas.add(fabricImage)
+      fabricImage.setCoords()
+      canvas.requestRenderAll()
+    })
+  })
+}
+
+async function loadFabricImage(url: string) {
+  return await new Promise<any>((resolve, reject) => {
+    const element = new Image()
+    element.crossOrigin = 'anonymous'
+    element.onload = () => resolve(new fabric.Image(element))
+    element.onerror = () => reject(new Error('이미지를 불러오지 못했습니다.'))
+    element.src = url
+  })
+}
+
 export function CanvasEditor({ noteId, tool, brushColor, brushSize, canvasData, images, onChange, onUploadImage, theme }: Props) {
   const canvasEl = useRef<HTMLCanvasElement | null>(null)
   const canvasRef = useRef<any>(null)
   const toolRef = useRef<CanvasTool>(tool)
+  const initializedNoteIdRef = useRef<string>('')
+  const loadingRef = useRef(false)
   const [isReady, setIsReady] = useState(false)
 
   useEffect(() => {
     toolRef.current = tool
     const canvas = canvasRef.current
     if (!canvas) return
-    canvas.isDrawingMode = tool !== 'select'
-    if (tool === 'draw' || tool === 'erase') {
-      const brush = canvas.freeDrawingBrush as any
+
+    canvas.isDrawingMode = tool === 'draw' || tool === 'erase'
+    const brush = canvas.freeDrawingBrush as any
+    if (brush) {
       brush.width = brushSize
       brush.color = tool === 'erase' ? '#ffffff' : brushColor
     }
@@ -50,7 +93,7 @@ export function CanvasEditor({ noteId, tool, brushColor, brushSize, canvasData, 
 
   useEffect(() => {
     const canvas = canvasEl.current
-    if (!canvas) return
+    if (!canvas || canvasRef.current) return
 
     const fabricCanvas = new fabric.Canvas(canvas, {
       preserveObjectStacking: true,
@@ -60,10 +103,9 @@ export function CanvasEditor({ noteId, tool, brushColor, brushSize, canvasData, 
 
     fabricCanvas.setWidth(canvas.parentElement?.clientWidth ?? 600)
     fabricCanvas.setHeight(420)
-    fabricCanvas.isDrawingMode = tool !== 'select'
-
+    fabricCanvas.isDrawingMode = tool === 'draw' || tool === 'erase'
     fabricCanvas.freeDrawingBrush = new fabric.PencilBrush(fabricCanvas)
-    fabricCanvas.freeDrawingBrush.color = brushColor
+    fabricCanvas.freeDrawingBrush.color = tool === 'erase' ? '#ffffff' : brushColor
     fabricCanvas.freeDrawingBrush.width = brushSize
 
     fabricCanvas.on('path:created', (event: any) => {
@@ -76,7 +118,9 @@ export function CanvasEditor({ noteId, tool, brushColor, brushSize, canvasData, 
       emitChange(fabricCanvas)
     })
 
-    fabricCanvas.on('object:added', () => emitChange(fabricCanvas))
+    fabricCanvas.on('object:added', () => {
+      if (!loadingRef.current) emitChange(fabricCanvas)
+    })
     fabricCanvas.on('object:modified', () => emitChange(fabricCanvas))
     fabricCanvas.on('object:removed', () => emitChange(fabricCanvas))
 
@@ -100,65 +144,74 @@ export function CanvasEditor({ noteId, tool, brushColor, brushSize, canvasData, 
       fabricCanvas.dispose()
       canvasRef.current = null
     }
-  }, [brushColor, brushSize, theme])
+  }, [])
 
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
-
-    const background = theme === 'dark' ? '#1c1b22' : '#fffaf1'
-    canvas.setBackgroundColor(background, () => canvas.renderAll())
+    canvas.setBackgroundColor(theme === 'dark' ? '#1c1b22' : '#fffaf1', () => canvas.renderAll())
   }, [theme])
 
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
+    if (initializedNoteIdRef.current === noteId) return
 
-    const payload = canvasData?.trim()
+    loadingRef.current = true
     canvas.clear()
     canvas.setBackgroundColor(theme === 'dark' ? '#1c1b22' : '#fffaf1', () => canvas.renderAll())
 
-    if (!payload) {
-      return
+    if (canvasData?.trim()) {
+      try {
+        const parsed = JSON.parse(canvasData)
+        canvas.loadFromJSON(parsed, () => {
+          canvas.renderAll()
+          syncImages(canvas, images)
+          loadingRef.current = false
+        })
+      } catch {
+        loadingRef.current = false
+      }
+    } else {
+      syncImages(canvas, images)
+      loadingRef.current = false
     }
 
-    const parsed = typeof payload === 'string' ? JSON.parse(payload) : payload
-    canvas.loadFromJSON(parsed, () => {
-      canvas.renderAll()
-    })
-  }, [noteId, canvasData, theme])
+    initializedNoteIdRef.current = noteId
+  }, [noteId, canvasData, images, theme])
 
   async function handleUpload(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
     if (!file) return
+
     const image = await onUploadImage(file)
     const canvas = canvasRef.current
     if (!canvas) return
+
     await addImageToCanvas(canvas, image)
     emitChange(canvas)
     event.target.value = ''
   }
 
   async function addImageToCanvas(canvas: any, image: NoteImage) {
-    await new Promise<void>((resolve) => {
-      fabric.Image.fromURL(image.url, (fabricImage: any) => {
-        fabricImage.set({
-          left: image.x,
-          top: image.y,
-          scaleX: image.scale,
-          scaleY: image.scale,
-          angle: image.rotation,
-          hasControls: true,
-          hasBorders: true,
-          name: image.name,
-          data: { imageId: image.id },
-        } as any)
-        canvas.add(fabricImage)
-        canvas.setActiveObject(fabricImage)
-        canvas.renderAll()
-        resolve()
-      })
-    })
+    const fabricImage = await loadFabricImage(image.url)
+    fabricImage.set({
+      left: image.x,
+      top: image.y,
+      scaleX: image.scale,
+      scaleY: image.scale,
+      angle: image.rotation,
+      hasControls: true,
+      hasBorders: true,
+      selectable: true,
+      evented: true,
+      name: image.name,
+      data: { imageId: image.id },
+    } as any)
+    canvas.add(fabricImage)
+    canvas.setActiveObject(fabricImage)
+    fabricImage.setCoords()
+    canvas.requestRenderAll()
   }
 
   function emitChange(canvas: any) {

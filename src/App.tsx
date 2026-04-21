@@ -30,6 +30,7 @@ export default function App() {
   const [status, setStatus] = useState<'idle' | 'loading' | 'saving' | 'error'>('loading')
   const [errorMessage, setErrorMessage] = useState<string>('')
   const [currentUserId, setCurrentUserId] = useState('')
+  const [nickname, setNickname] = useState(() => localStorage.getItem('noteapad-nickname') ?? '')
   const lastPersistedSignature = useRef<string>('')
 
   const debouncedDraft = useDebouncedValue(draft, 500)
@@ -45,6 +46,10 @@ export default function App() {
   }, [])
 
   useEffect(() => {
+    localStorage.setItem('noteapad-nickname', nickname)
+  }, [nickname])
+
+  useEffect(() => {
     if (selectedId) {
       const next = notes.find((note) => note.id === selectedId)
       if (next) setDraft(next)
@@ -55,7 +60,7 @@ export default function App() {
   }, [notes, selectedId])
 
   useEffect(() => {
-    const shouldPersist = selectedId && debouncedDraft.id === selectedId
+    const shouldPersist = Boolean(currentUserId) && selectedId && debouncedDraft.id === selectedId
     if (!shouldPersist) return
 
     const signature = buildSignature(debouncedDraft)
@@ -66,12 +71,15 @@ export default function App() {
     }, 0)
 
     return () => window.clearTimeout(timer)
-  }, [debouncedDraft, selectedId])
+  }, [debouncedDraft, selectedId, currentUserId])
 
   async function loadNotes() {
     setStatus('loading')
     try {
       const userId = await noteRepository.ensureFirebaseAuth()
+      if (!userId) {
+        throw new Error('Firebase Anonymous Auth가 활성화되어 있지 않습니다.')
+      }
       setCurrentUserId(userId)
       const result = await noteRepository.listNotes(userId)
       setNotes(result)
@@ -102,6 +110,10 @@ export default function App() {
   }
 
   function handleNewNote() {
+    if (!currentUserId) {
+      setErrorMessage('로그인 정보가 아직 준비되지 않았습니다. 잠시 후 다시 시도하세요.')
+      return
+    }
     const next = createBlankNote(currentUserId)
     setNotes((current) => [next, ...current])
     setSelectedId(next.id)
@@ -114,6 +126,12 @@ export default function App() {
   }
 
   async function persistDraft(current: Note) {
+    if (!currentUserId) {
+      setStatus('error')
+      setErrorMessage('저장 전에 사용자 인증이 필요합니다. Firebase Anonymous Auth를 켜세요.')
+      return
+    }
+
     setStatus('saving')
     try {
       const saved = await noteRepository.saveNote(
@@ -135,7 +153,11 @@ export default function App() {
       setErrorMessage('')
     } catch (error) {
       setStatus('error')
-      setErrorMessage(error instanceof Error ? error.message : '저장하지 못했습니다.')
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : '저장하지 못했습니다. Firebase Auth/Rules 설정을 확인하세요.',
+      )
     }
   }
 
@@ -145,6 +167,10 @@ export default function App() {
 
   async function handleDelete() {
     if (!draft.id) return
+    if (!currentUserId) {
+      setErrorMessage('삭제 전에 사용자 인증이 필요합니다.')
+      return
+    }
     const confirmDelete = window.confirm('이 메모를 삭제할까요?')
     if (!confirmDelete) return
     await noteRepository.removeNote(draft.id, currentUserId)
@@ -164,11 +190,18 @@ export default function App() {
   }
 
   async function handleUploadImage(file: File): Promise<NoteImage> {
+    if (!currentUserId) {
+      throw new Error('이미지 업로드 전에 사용자 인증이 필요합니다.')
+    }
     const noteId = draft.id
     const uploaded = await noteRepository.uploadNoteImage(noteId, file, currentUserId)
     setDraft((current) => ({ ...current, images: [...current.images, uploaded], updatedAt: nowIso() }))
     return uploaded
   }
+
+  const authLabel = currentUserId
+    ? `익명 로그인됨 · uid ${currentUserId.slice(0, 6)}…`
+    : '로그인 중'
 
   return (
     <Layout
@@ -180,10 +213,13 @@ export default function App() {
       onSelect={handleSelect}
       onToggleTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
       onNewNote={handleNewNote}
+      nickname={nickname}
+      authLabel={authLabel}
+      onNicknameChange={setNickname}
     >
       <section className="statusRow">
         <span className={`statusBadge ${status}`}>{status === 'saving' ? '저장 중' : status === 'loading' ? '불러오는 중' : status === 'error' ? '오류' : '준비됨'}</span>
-        <button className="ghostButton" type="button" onClick={handleManualSave}>
+        <button className="ghostButton" type="button" onClick={handleManualSave} disabled={!currentUserId}>
           저장 버튼
         </button>
       </section>

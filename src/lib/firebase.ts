@@ -96,7 +96,11 @@ export async function ensureFirebaseAuth() {
         resolve(credential.user.uid)
       } catch (error) {
         unsubscribe()
-        reject(error)
+        reject(
+          new Error(
+            'Firebase Anonymous Auth가 비활성화되어 있거나 로그인에 실패했습니다. Firebase Console에서 Authentication > Sign-in method > Anonymous를 켜세요.',
+          ),
+        )
       }
     })
   })
